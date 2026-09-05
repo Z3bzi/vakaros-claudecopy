@@ -44,12 +44,17 @@ main{flex:1;overflow:hidden;position:relative}
 #status .warn{color:var(--burn)}
 
 /* ----- buttons ----- */
-.bar{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--line);padding:2px 0 0;flex:0 0 auto}
+.bar{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;background:var(--line);padding:2px 0 0;flex:0 0 auto}
 .bar button{
   font:700 19px/1 "Barlow Condensed",sans-serif;color:var(--ink);background:var(--sea2);
-  border:0;padding:18px 4px calc(18px + var(--sab));min-height:64px;letter-spacing:.02em
+  border:0;padding:14px 4px;min-height:58px;letter-spacing:.02em;
+  grid-column:span 2;position:relative;overflow:hidden;touch-action:manipulation
 }
+.bar button.wide{grid-column:span 3}
+.bar button.last{padding-bottom:calc(14px + var(--sab))}
 .bar button[disabled]{opacity:.4}
+.fill{position:absolute;left:0;top:0;height:100%;width:0;background:var(--ocs);opacity:.4;pointer-events:none}
+.holding .fill{width:100%;transition:width 1.2s linear}
 .bar button:active{background:var(--line)}
 .bar button.hot{background:var(--go);color:var(--sea)}
 .bar button.warn{background:var(--ocs);color:var(--ink)}
@@ -124,8 +129,9 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
   <div class="bar">
     <button id="bSync">Sync<small id="syncsub">start 5:00</small></button>
     <button id="bMin">+1 min<small id="minsub">timer off</small></button>
-    <button id="bPin">Ping pin<small id="pinsub">not set</small></button>
-    <button id="bRC">Ping RC<small id="rcsub">not set</small></button>
+    <button id="bReset"><span class="fill"></span>Reset<small id="resetsub">hold 1.2 s</small></button>
+    <button id="bPin" class="wide last">Ping pin<small id="pinsub">not set</small></button>
+    <button id="bRC" class="wide last">Ping RC<small id="rcsub">not set</small></button>
   </div>
 </section>
 
@@ -280,6 +286,26 @@ function sync(){
   S.startAt=Date.now()+synced*1000;
   S.lastSignal=null;
 }
+/* stop and clear the countdown; the line and track are left alone */
+function resetTimer(){
+  S.running=false; S.startAt=null; S.lastSignal=null;
+  beep(2,.1,520);
+  try{ navigator.vibrate&&navigator.vibrate([40,60,40]); }catch(e){}
+}
+/* Reset is hold-to-confirm so a knock on a wet deck cannot wipe the timer. */
+const HOLD_MS=1200;
+let holdT=null;
+function holdStart(e){
+  if($('bReset').disabled) return;
+  if(e.button!=null&&e.button!==0) return;
+  $('bReset').classList.add('holding');
+  holdT=setTimeout(()=>{ holdT=null; $('bReset').classList.remove('holding'); resetTimer(); },HOLD_MS);
+}
+function holdEnd(){
+  if(holdT){ clearTimeout(holdT); holdT=null; }
+  $('bReset').classList.remove('holding');
+}
+
 /* add a minute to a running countdown */
 function addMinute(){
   if(!S.running) return;
@@ -425,12 +451,14 @@ function render(){
     hero.className=rem<=0?'go':'armed';
     $('cdlbl').textContent=rem<=0?'Racing · tap Sync to reset':(rem<=60?'Last minute':'Countdown · tap Sync to drop to the next minute');
     $('bSync').className='hot'; $('syncsub').textContent=rem<=0?'reset':'to next min';
+    $('bReset').disabled=false;
     $('bMin').disabled=false; $('minsub').textContent=fmtT(Math.max(0,Math.ceil(rem)))+' → '+fmtT(Math.max(0,Math.ceil(rem))+60);
   }else{
     $('cd').textContent=fmtT(S.seqLen); hero.className='';
     $('cdlbl').textContent='Tap Sync to arm the timer';
     $('bSync').className=''; $('syncsub').textContent='start '+fmtT(S.seqLen);
     $('bMin').disabled=true; $('minsub').textContent='timer off';
+    $('bReset').disabled=true;
   }
   // line
   const bl=boatLine();
@@ -523,6 +551,9 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
 });
 $('bSync').onclick=sync;
 $('bMin').onclick=addMinute;
+$('bReset').addEventListener('pointerdown',holdStart);
+['pointerup','pointercancel','pointerleave'].forEach(ev=>$('bReset').addEventListener(ev,holdEnd));
+$('bReset').addEventListener('contextmenu',e=>e.preventDefault());
 function ping(which){
   if(S.lat==null){ alert('No GPS fix yet.'); return; }
   const p={lat:S.lat,lon:S.lon};
