@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1d33">
+<title>Startline</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sea:#0b1d33; --sea2:#132a47; --line:#2a4a72;
+  --ink:#f4f8ff; --dim:#8fa6c4;
+  --go:#5ee0b8; --burn:#ffb020; --ocs:#ff5a3d;
+  --sat:env(safe-area-inset-top); --sab:env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;background:var(--sea);color:var(--ink);font-family:Barlow,system-ui,sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column;padding-top:var(--sat)}
+.num{font-family:"Barlow Condensed",Barlow,system-ui,sans-serif;font-weight:800;font-variant-numeric:tabular-nums;line-height:.9;letter-spacing:-.01em}
+main{flex:1;overflow:hidden;position:relative}
+.view{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto}
+.view.on{display:flex}
+
+/* ----- race view ----- */
+#hero{flex:0 0 auto;padding:12px 16px 6px;text-align:center;border-bottom:2px solid var(--line);transition:background .2s}
+#hero .num{font-size:min(38vw,150px)}
+#hero .lbl{color:var(--dim);font-size:14px;margin-top:4px}
+#hero.armed{background:var(--sea2)}
+#hero.go{background:#0e3d34}
+#burnrow{display:grid;grid-template-columns:1fr 1fr;border-bottom:2px solid var(--line)}
+.cell{padding:10px 14px;border-right:2px solid var(--line)}
+.cell:last-child{border-right:0}
+.cell .num{font-size:min(22vw,92px)}
+.cell .lbl{color:var(--dim);font-size:13px;margin-top:6px}
+.cell.burn .num{color:var(--burn)} .cell.ocs .num{color:var(--ocs)} .cell.go .num{color:var(--go)}
+#navrow{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:2px solid var(--line)}
+#navrow .cell .num{font-size:min(17vw,70px)}
+#extra{display:grid;grid-template-columns:repeat(3,1fr);flex:1}
+#extra .cell .num{font-size:min(13vw,52px);font-weight:700}
+#status{padding:6px 14px;font-size:12px;color:var(--dim);display:flex;justify-content:space-between;gap:8px}
+#status b{color:var(--ink);font-weight:600}
+#status .warn{color:var(--burn)}
+
+/* ----- buttons ----- */
+.bar{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--line);padding:2px 0 0;flex:0 0 auto}
+.bar button{
+  font:700 20px/1 "Barlow Condensed",sans-serif;color:var(--ink);background:var(--sea2);
+  border:0;padding:18px 6px calc(18px + var(--sab));min-height:64px;letter-spacing:.02em
+}
+.bar button:active{background:var(--line)}
+.bar button.hot{background:var(--go);color:var(--sea)}
+.bar button.warn{background:var(--ocs);color:var(--ink)}
+.bar button small{display:block;font:400 12px Barlow,sans-serif;margin-top:5px;opacity:.85}
+button:focus-visible{outline:3px solid var(--go);outline-offset:-3px}
+
+/* ----- tabs ----- */
+nav{display:flex;border-bottom:2px solid var(--line);flex:0 0 auto}
+nav button{flex:1;background:none;border:0;color:var(--dim);font:600 15px Barlow,sans-serif;padding:12px 0;border-bottom:3px solid transparent}
+nav button.on{color:var(--ink);border-bottom-color:var(--go)}
+
+/* ----- line & settings ----- */
+.pad{padding:16px}
+h2{font:700 22px "Barlow Condensed",sans-serif;margin:18px 0 8px}
+h2:first-child{margin-top:0}
+.row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:12px}
+.row .k{color:var(--dim);font-size:15px}
+.row .v{font:700 26px "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.row input[type=number],.row select{
+  width:110px;background:var(--sea2);color:var(--ink);border:1px solid var(--line);border-radius:6px;
+  padding:10px;font:600 18px Barlow,sans-serif;text-align:right
+}
+.btn{background:var(--sea2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:12px 16px;font:600 16px Barlow,sans-serif}
+.btn:active{background:var(--line)}
+.btn.danger{border-color:var(--ocs);color:var(--ocs)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btnrow .btn{flex:1;text-align:center}
+#linecanvas{width:100%;height:220px;display:block;background:var(--sea2);border-radius:8px;margin-top:8px}
+p.help{color:var(--dim);font-size:14px;line-height:1.45;margin:6px 0 0}
+.bias{font:800 40px "Barlow Condensed",sans-serif;margin-top:4px}
+.bias.pin{color:var(--go)} .bias.rc{color:var(--burn)}
+.toggle{display:flex;align-items:center;gap:8px}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<nav>
+  <button class="on" data-v="race">Race</button>
+  <button data-v="line">Start line</button>
+  <button data-v="settings">Settings</button>
+</nav>
+
+<main>
+
+<!-- RACE -->
+<section id="race" class="view on">
+  <div id="hero">
+    <div class="num" id="cd">5:00</div>
+    <div class="lbl" id="cdlbl">Tap Sync to arm the timer</div>
+  </div>
+  <div id="burnrow">
+    <div class="cell" id="burncell"><div class="num" id="burn">—</div><div class="lbl">Time to burn</div></div>
+    <div class="cell" id="dcell"><div class="num" id="dline">—</div><div class="lbl" id="dlbl">Distance to line (m)</div></div>
+  </div>
+  <div id="navrow">
+    <div class="cell"><div class="num" id="sog">0.0</div><div class="lbl">SOG kn</div></div>
+    <div class="cell"><div class="num" id="cog">---</div><div class="lbl">COG °</div></div>
+    <div class="cell"><div class="num" id="hdg">---</div><div class="lbl">Heading °</div></div>
+  </div>
+  <div id="extra">
+    <div class="cell"><div class="num" id="heel">0</div><div class="lbl">Heel °</div></div>
+    <div class="cell"><div class="num" id="vmg">—</div><div class="lbl">VMG kn (to wind)</div></div>
+    <div class="cell"><div class="num" id="dpin">—</div><div class="lbl" id="dpinlbl">Pin / RC (m)</div></div>
+  </div>
+  <div id="status">
+    <span id="gps">GPS: waiting…</span>
+    <span id="rec"></span>
+    <span id="clock"></span>
+  </div>
+  <div class="bar">
+    <button id="bSync">Sync<small id="syncsub">start 5:00</small></button>
+    <button id="bPin">Ping pin<small id="pinsub">not set</small></button>
+    <button id="bRC">Ping RC<small id="rcsub">not set</small></button>
+  </div>
+</section>
+
+<!-- LINE -->
+<section id="line" class="view">
+  <div class="pad">
+    <h2>Line</h2>
+    <canvas id="linecanvas"></canvas>
+    <div class="row"><span class="k">Line length</span><span class="v" id="llen">—</span></div>
+    <div class="row"><span class="k">Line bearing (pin → RC)</span><span class="v" id="lbrg">—</span></div>
+    <div class="row"><span class="k">Square-line wind</span><span class="v" id="lsq">—</span></div>
+
+    <h2>Wind</h2>
+    <div class="row">
+      <span class="k">True wind direction</span>
+      <input type="number" id="twd" min="0" max="359" step="1" placeholder="—" inputmode="numeric">
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="bH2W">Head to wind: use heading</button>
+      <button class="btn" id="bClrWind">Clear wind</button>
+    </div>
+    <p class="help">Point the bow into the wind with sails luffing and tap the button, or type the direction from a forecast/instrument.</p>
+
+    <h2>Bias</h2>
+    <div class="bias" id="bias">Set both ends and wind</div>
+    <p class="help" id="biastxt"></p>
+
+    <div class="btnrow" style="margin-top:20px">
+      <button class="btn" id="bSwap">Swap ends</button>
+      <button class="btn danger" id="bClrLine">Clear line</button>
+    </div>
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings" class="view">
+  <div class="pad">
+    <h2>Start sequence</h2>
+    <div class="row"><span class="k">Length</span>
+      <select id="seqlen"><option value="300">5 min (5-4-1-0)</option><option value="180">3 min</option><option value="240">4 min</option><option value="600">10 min</option></select>
+    </div>
+    <div class="row"><span class="k">Sound signals</span><label class="toggle"><input type="checkbox" id="sound" checked></label></div>
+    <div class="row"><span class="k">Rolling: auto-restart after 0</span><label class="toggle"><input type="checkbox" id="rolling"></label></div>
+
+    <h2>Sensors</h2>
+    <div class="row"><span class="k">Heading source</span>
+      <select id="hdgsrc"><option value="compass">Compass</option><option value="cog">COG</option></select>
+    </div>
+    <div class="row"><span class="k">Heel sign flip</span><label class="toggle"><input type="checkbox" id="heelflip"></label></div>
+    <div class="row"><span class="k">Demo mode (simulated boat)</span><label class="toggle"><input type="checkbox" id="demo"></label></div>
+    <div class="btnrow"><button class="btn" id="bPerm">Enable compass & keep screen on</button></div>
+    <p class="help">iOS asks for motion permission the first time. Wake lock stops the phone from sleeping while racing.</p>
+
+    <h2>Track</h2>
+    <div class="row"><span class="k">Points recorded</span><span class="v" id="npts">0</span></div>
+    <div class="btnrow">
+      <button class="btn" id="bRec">Start recording</button>
+      <button class="btn" id="bGpx">Export GPX</button>
+      <button class="btn danger" id="bClrTrack">Clear</button>
+    </div>
+    <p class="help">Recording also stores line ends and the start time as waypoints.</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ================= state ================= */
+const S = {
+  lat:null, lon:null, sogMs:0, cog:null, hdg:null, heel:0, acc:null, fixTs:0,
+  pin:null, rc:null, courseSide:null,   // courseSide: +1/-1, sign of normal toward course side
+  twd:null,
+  seqLen:300, startAt:null, running:false, lastSignal:null,
+  recording:false, track:[], marks:[],
+  demo:false, prev:null
+};
+const $ = id=>document.getElementById(id);
+const KN = 1.943844;
+const R = 6371000;
+
+/* ================= geo helpers (local flat frame in metres) ================= */
+function toXY(lat,lon,lat0,lon0){
+  const kx = Math.cos(lat0*Math.PI/180)*R*Math.PI/180, ky = R*Math.PI/180;
+  return {x:(lon-lon0)*kx, y:(lat-lat0)*ky};
+}
+function dist(a,b){ const p=toXY(b.lat,b.lon,a.lat,a.lon); return Math.hypot(p.x,p.y); }
+function brg(a,b){ const p=toXY(b.lat,b.lon,a.lat,a.lon); return (Math.atan2(p.x,p.y)*180/Math.PI+360)%360; }
+const norm = d=>((d%360)+360)%360;
+const ang180 = d=>((d+540)%360)-180;
+function unit(bearing){ const r=bearing*Math.PI/180; return {x:Math.sin(r),y:Math.cos(r)}; }
+
+/* Line geometry: returns null if line incomplete */
+function lineGeo(){
+  if(!S.pin||!S.rc) return null;
+  const o=S.pin, e=toXY(S.rc.lat,S.rc.lon,o.lat,o.lon);
+  const L=Math.hypot(e.x,e.y); if(L<1) return null;
+  const d={x:e.x/L,y:e.y/L};
+  let n={x:-d.y,y:d.x};                 // left normal
+  let side=S.courseSide;
+  if(S.twd!=null){                      // course side = upwind side
+    const u=unit(S.twd);
+    side = Math.sign(n.x*u.x+n.y*u.y)||1;
+  }
+  if(!side) side=1;
+  n={x:n.x*side,y:n.y*side};            // n points toward course side
+  return {o,L,d,n,brg:norm(Math.atan2(d.x,d.y)*180/Math.PI)};
+}
+/* Boat relative to line: distToLine >0 = pre-start side, <0 = OCS */
+function boatLine(){
+  const g=lineGeo(); if(!g||S.lat==null) return null;
+  const b=toXY(S.lat,S.lon,g.o.lat,g.o.lon);
+  const perp=b.x*g.n.x+b.y*g.n.y;       // positive = course side
+  const along=b.x*g.d.x+b.y*g.d.y;
+  const dLine=-perp;
+  const dPin=Math.hypot(b.x,b.y), dRC=Math.hypot(b.x-g.d.x*g.L,b.y-g.d.y*g.L);
+  let vToLine=null;
+  if(S.cog!=null){ const v=unit(S.cog); vToLine=(v.x*g.n.x+v.y*g.n.y)*S.sogMs; } // m/s toward line
+  return {dLine,dPin,dRC,along,vToLine,g};
+}
+function bias(){
+  const g=lineGeo(); if(!g||S.twd==null) return null;
+  const u=unit(S.twd);
+  const adv=(g.d.x*u.x+g.d.y*u.y)*g.L;  // >0: RC end more upwind
+  const deg=Math.asin(Math.max(-1,Math.min(1,g.d.x*u.x+g.d.y*u.y)))*180/Math.PI;
+  return {adv, deg, favored: adv>0?'rc':'pin', squareWind: norm(g.brg + (g.n.x*unit(g.brg-90).x+g.n.y*unit(g.brg-90).y>0?-90:90))};
+}
+
+/* ================= timer ================= */
+let audioCtx=null;
+function beep(n=1,len=.12,freq=880){
+  if(!$('sound').checked) return;
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    for(let i=0;i<n;i++){
+      const o=audioCtx.createOscillator(), gn=audioCtx.createGain();
+      o.frequency.value=freq; o.connect(gn); gn.connect(audioCtx.destination);
+      const t=audioCtx.currentTime+i*(len+.08);
+      gn.gain.setValueAtTime(.4,t); gn.gain.exponentialRampToValueAtTime(.001,t+len);
+      o.start(t); o.stop(t+len+.01);
+    }
+  }catch(e){}
+}
+function remaining(){ return S.startAt ? (S.startAt-Date.now())/1000 : S.seqLen; }
+function sync(){
+  beep(1,.08,1200);
+  if(!S.running){ S.startAt=Date.now()+S.seqLen*1000; S.running=true; S.lastSignal=null; return; }
+  const rem=remaining();
+  if(rem<=0){ S.running=false; S.startAt=null; return; }   // after start: stop/reset
+  // round to nearest minute
+  const rounded=Math.round(rem/60)*60;
+  S.startAt=Date.now()+rounded*1000;
+}
+function signals(){
+  if(!S.running) return;
+  const rem=Math.ceil(remaining()-1e-6);
+  const key=rem;
+  if(key===S.lastSignal) return;
+  S.lastSignal=key;
+  if(rem===S.seqLen) beep(1,.5,660);
+  else if(rem===240&&S.seqLen===300) beep(1,.5,660);
+  else if(rem===60) beep(1,.5,660);
+  else if(rem>0&&rem%60===0) beep(1,.25,660);
+  else if(rem===30||rem===20) beep(1,.12);
+  else if(rem<=10&&rem>0) beep(1,.08,1000);
+  else if(rem===0){
+    beep(1,1.2,520);
+    S.marks.push({lat:S.lat,lon:S.lon,name:'Start',ts:Date.now()});
+    if($('rolling').checked){ S.startAt=Date.now()+S.seqLen*1000; S.lastSignal=null; }
+  }
+}
+
+/* ================= sensors ================= */
+function onFix(lat,lon,speed,heading,acc){
+  const now=Date.now();
+  if(S.prev&&(speed==null||heading==null)){
+    const dt=(now-S.prev.ts)/1000;
+    if(dt>0.5){
+      const d=dist(S.prev,{lat,lon});
+      if(speed==null) speed=d/dt;
+      if(heading==null&&d>1) heading=brg(S.prev,{lat,lon});
+    }
+  }
+  S.lat=lat; S.lon=lon; S.acc=acc; S.fixTs=now;
+  if(speed!=null) S.sogMs=S.sogMs*0.5+speed*0.5;
+  if(heading!=null&&!isNaN(heading)) S.cog=heading;
+  S.prev={lat,lon,ts:now};
+  if(S.recording) S.track.push({lat,lon,ts:now,sog:S.sogMs,cog:S.cog});
+}
+let watchId=null;
+function startGPS(){
+  if(!navigator.geolocation){ $('gps').textContent='GPS: not available'; return; }
+  watchId=navigator.geolocation.watchPosition(p=>{
+    if(S.demo) return;
+    const c=p.coords; onFix(c.latitude,c.longitude,c.speed,c.heading,c.accuracy);
+  },e=>{ if(!S.demo) $('gps').innerHTML='<span class="warn">GPS: '+e.message+'</span>'; },
+  {enableHighAccuracy:true,maximumAge:0,timeout:10000});
+}
+function onOrient(e){
+  let h=null;
+  if(e.webkitCompassHeading!=null) h=e.webkitCompassHeading;
+  else if(e.absolute&&e.alpha!=null) h=norm(360-e.alpha);
+  if(h!=null) S.hdg=h;
+  if(e.gamma!=null){ let heel=e.gamma; if(window.innerWidth>window.innerHeight) heel=e.beta; S.heel=S.heel*0.7+heel*0.3; }
+}
+async function requestPerms(){
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){
+      const r=await DeviceOrientationEvent.requestPermission();
+      if(r!=='granted') alert('Motion permission denied – heading will use COG.');
+    }
+  }catch(e){}
+  window.addEventListener('deviceorientationabsolute',onOrient,true);
+  window.addEventListener('deviceorientation',onOrient,true);
+  try{ if(navigator.wakeLock) await navigator.wakeLock.request('screen'); }catch(e){}
+  beep(1,.05,1200);
+}
+
+/* demo boat */
+let demoT=0, demoState={lat:59.9020,lon:10.7180,hdg:230,spd:2.8};
+function demoTick(){
+  if(!S.demo) return;
+  demoT+=0.5;
+  demoState.hdg=norm(demoState.hdg+Math.sin(demoT/9)*1.5);
+  demoState.spd=2.6+Math.sin(demoT/5)*0.4;
+  const u=unit(demoState.hdg), m=demoState.spd*0.5;
+  demoState.lat+= (u.y*m)/(R*Math.PI/180);
+  demoState.lon+= (u.x*m)/(Math.cos(demoState.lat*Math.PI/180)*R*Math.PI/180);
+  S.hdg=norm(demoState.hdg+Math.sin(demoT/3)*4);
+  S.heel=12+Math.sin(demoT/2)*5;
+  onFix(demoState.lat,demoState.lon,demoState.spd,demoState.hdg,5);
+  if(!S.pin){ S.pin={lat:59.9024,lon:10.7150}; S.rc={lat:59.9016,lon:10.7215}; S.twd=350; $('twd').value=350; }
+}
+
+/* ================= track export ================= */
+function gpx(){
+  const iso=t=>new Date(t).toISOString();
+  let s='<?xml version="1.0"?>\n<gpx version="1.1" creator="Startline" xmlns="http://www.topografix.com/GPX/1/1">\n';
+  const wps=[...S.marks]; if(S.pin) wps.push({...S.pin,name:'Pin'}); if(S.rc) wps.push({...S.rc,name:'RC'});
+  for(const w of wps) if(w.lat!=null) s+=`<wpt lat="${w.lat}" lon="${w.lon}"><name>${w.name}</name>${w.ts?`<time>${iso(w.ts)}</time>`:''}</wpt>\n`;
+  s+='<trk><name>Race</name><trkseg>\n';
+  for(const p of S.track) s+=`<trkpt lat="${p.lat}" lon="${p.lon}"><time>${iso(p.ts)}</time></trkpt>\n`;
+  s+='</trkseg></trk>\n</gpx>';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([s],{type:'application/gpx+xml'}));
+  a.download='race-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.gpx';
+  a.click();
+}
+
+/* ================= render ================= */
+const fmt=(v,d=0)=>v==null||isNaN(v)?'—':v.toFixed(d);
+const fmtT=s=>{ const neg=s<0; s=Math.abs(s); const m=Math.floor(s/60), sec=Math.floor(s%60); return (neg?'-':'')+m+':'+String(sec).padStart(2,'0'); };
+function render(){
+  signals();
+  // timer
+  const rem=remaining();
+  const hero=$('hero');
+  if(S.running){
+    $('cd').textContent=rem>=0?fmtT(Math.ceil(rem)):'+'+fmtT(-rem);
+    hero.className=rem<=0?'go':'armed';
+    $('cdlbl').textContent=rem<=0?'Racing · tap Sync to reset':(rem<=60?'Last minute':'Countdown · tap Sync to round to nearest minute');
+    $('bSync').className='hot'; $('syncsub').textContent=rem<=0?'reset':'round';
+  }else{
+    $('cd').textContent=fmtT(S.seqLen); hero.className='';
+    $('cdlbl').textContent='Tap Sync to arm the timer';
+    $('bSync').className=''; $('syncsub').textContent='start '+fmtT(S.seqLen);
+  }
+  // line
+  const bl=boatLine();
+  const bc=$('burncell'), dc=$('dcell');
+  if(bl){
+    const ocs=bl.dLine<0;
+    $('dline').textContent=(ocs?'OCS ':'')+fmt(Math.abs(bl.dLine));
+    dc.className='cell'+(ocs?' ocs':'');
+    let burn=null;
+    if(bl.vToLine!=null&&bl.vToLine>0.15&&S.running&&rem>0){
+      const ttl=bl.dLine/bl.vToLine; burn=rem-ttl;
+      $('burn').textContent=(burn>=0?'':'-')+fmtT(Math.abs(burn));
+      bc.className='cell '+(burn<0?'ocs':burn<15?'go':'burn');
+    }else if(S.running&&rem>0&&bl.dLine>=0){ $('burn').textContent='stopped'; bc.className='cell'; }
+    else{ $('burn').textContent='—'; bc.className='cell'; }
+    $('dpin').textContent=fmt(bl.dPin)+' / '+fmt(bl.dRC);
+  }else{
+    $('dline').textContent='—'; $('burn').textContent='—'; $('dpin').textContent='—';
+    bc.className='cell'; dc.className='cell';
+  }
+  // nav
+  $('sog').textContent=fmt(S.sogMs*KN,1);
+  $('cog').textContent=S.cog==null?'---':String(Math.round(S.cog)).padStart(3,'0');
+  const hdg=($('hdgsrc').value==='compass'&&S.hdg!=null)?S.hdg:S.cog;
+  $('hdg').textContent=hdg==null?'---':String(Math.round(hdg)).padStart(3,'0');
+  const heel=S.heel*($('heelflip').checked?-1:1);
+  $('heel').textContent=fmt(heel)+(heel>0.5?' S':heel<-0.5?' P':'');
+  if(S.twd!=null&&S.cog!=null) $('vmg').textContent=fmt(S.sogMs*KN*Math.cos((S.twd-S.cog)*Math.PI/180),1); else $('vmg').textContent='—';
+  // status
+  if(S.demo) $('gps').textContent='Demo boat';
+  else if(S.lat!=null){ const age=(Date.now()-S.fixTs)/1000; $('gps').innerHTML=(age>5?'<span class="warn">':'')+'GPS ±'+fmt(S.acc)+' m'+(age>5?' · stale</span>':''); }
+  $('rec').textContent=S.recording?'● REC '+S.track.length:'';
+  $('clock').textContent=new Date().toTimeString().slice(0,8);
+  $('pinsub').textContent=S.pin?(bl?fmt(bl.dPin)+' m':'set'):'not set';
+  $('rcsub').textContent=S.rc?(bl?fmt(bl.dRC)+' m':'set'):'not set';
+  $('npts').textContent=S.track.length;
+  // line view
+  const g=lineGeo(), b=bias();
+  $('llen').textContent=g?fmt(g.L)+' m':'—';
+  $('lbrg').textContent=g?Math.round(g.brg)+'°':'—';
+  $('lsq').textContent=g?Math.round(norm(g.brg-90))+'° / '+Math.round(norm(g.brg+90))+'°':'—';
+  const be=$('bias');
+  if(b){
+    const end=b.favored==='pin'?'Pin':'RC boat';
+    be.textContent=end+' end favored by '+fmt(Math.abs(b.deg))+'° ('+fmt(Math.abs(b.adv))+' m)';
+    be.className='bias '+b.favored;
+    $('biastxt').textContent=Math.abs(b.deg)<3?'Line is essentially square.':'Starting at the '+end.toLowerCase()+' gains roughly '+fmt(Math.abs(b.adv))+' m upwind.';
+  }else{ be.textContent='Set both ends and wind'; be.className='bias'; $('biastxt').textContent=''; }
+  drawLine(g,bl);
+  requestAnimationFrame(render);
+}
+
+function drawLine(g,bl){
+  const c=$('linecanvas'); if(!$('line').classList.contains('on')) return;
+  const w=c.clientWidth,h=c.clientHeight; if(c.width!==w*devicePixelRatio){c.width=w*devicePixelRatio;c.height=h*devicePixelRatio;}
+  const x=c.getContext('2d'); x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); x.clearRect(0,0,w,h);
+  x.font='600 13px Barlow'; x.textAlign='center';
+  if(!g){ x.fillStyle='#8fa6c4'; x.fillText('Ping both ends to see the line',w/2,h/2); return; }
+  // north-up, scale to fit line + boat
+  const pts=[{x:0,y:0},{x:g.d.x*g.L,y:g.d.y*g.L}];
+  if(bl){ const b=toXY(S.lat,S.lon,g.o.lat,g.o.lon); pts.push(b); }
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const span=Math.max(maxx-minx,maxy-miny,20)*1.4;
+  const sc=Math.min(w,h)/span, cx=(minx+maxx)/2, cy=(miny+maxy)/2;
+  const P=p=>({x:w/2+(p.x-cx)*sc, y:h/2-(p.y-cy)*sc});
+  const p0=P(pts[0]),p1=P(pts[1]);
+  // course side shading
+  x.save(); x.beginPath(); x.moveTo(p0.x,p0.y); x.lineTo(p1.x,p1.y);
+  x.lineTo(p1.x+g.n.x*400,p1.y-g.n.y*400); x.lineTo(p0.x+g.n.x*400,p0.y-g.n.y*400); x.closePath();
+  x.fillStyle='rgba(94,224,184,.07)'; x.fill(); x.restore();
+  x.strokeStyle='#f4f8ff'; x.lineWidth=3; x.beginPath(); x.moveTo(p0.x,p0.y); x.lineTo(p1.x,p1.y); x.stroke();
+  x.fillStyle='#5ee0b8'; x.beginPath(); x.arc(p0.x,p0.y,6,0,7); x.fill(); x.fillText('Pin',p0.x,p0.y-12);
+  x.fillStyle='#ffb020'; x.beginPath(); x.arc(p1.x,p1.y,6,0,7); x.fill(); x.fillText('RC',p1.x,p1.y-12);
+  if(S.twd!=null){ // wind arrow at top
+    const u=unit(S.twd); const ax=w-28, ay=28;
+    x.strokeStyle='#8fa6c4'; x.lineWidth=2; x.beginPath(); x.moveTo(ax+u.x*16,ay-u.y*16); x.lineTo(ax-u.x*16,ay+u.y*16); x.stroke();
+    x.beginPath(); x.moveTo(ax-u.x*16,ay+u.y*16); x.lineTo(ax-u.x*16+(-u.y-u.x)*6*-1,ay+u.y*16-(u.x-u.y)*6*-1); x.stroke();
+    x.fillStyle='#8fa6c4'; x.fillText('wind',ax,ay+30);
+  }
+  if(bl){ const b=P(pts[2]); x.fillStyle=bl.dLine<0?'#ff5a3d':'#f4f8ff';
+    const hd=(S.cog??0)*Math.PI/180; x.save(); x.translate(b.x,b.y); x.rotate(hd);
+    x.beginPath(); x.moveTo(0,-11); x.lineTo(7,9); x.lineTo(0,5); x.lineTo(-7,9); x.closePath(); x.fill(); x.restore(); }
+}
+
+/* ================= wiring ================= */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===b.dataset.v));
+});
+$('bSync').onclick=sync;
+function ping(which){
+  if(S.lat==null){ alert('No GPS fix yet.'); return; }
+  const p={lat:S.lat,lon:S.lon};
+  S[which]=p; beep(2,.06,1400);
+  // remember which side of the line the boat is on right now (pre-start side) if no wind
+  if(S.pin&&S.rc){
+    const o=S.pin,e=toXY(S.rc.lat,S.rc.lon,o.lat,o.lon),L=Math.hypot(e.x,e.y);
+    if(L>1){ const d={x:e.x/L,y:e.y/L}, n={x:-d.y,y:d.x}; const b=toXY(S.lat,S.lon,o.lat,o.lon);
+      const s=b.x*n.x+b.y*n.y; S.courseSide = s>0?-1:1; }   // boat is on pre-start side → course side is opposite
+  }
+}
+$('bPin').onclick=()=>ping('pin');
+$('bRC').onclick=()=>ping('rc');
+$('bSwap').onclick=()=>{ [S.pin,S.rc]=[S.rc,S.pin]; if(S.courseSide) S.courseSide*=-1; };
+$('bClrLine').onclick=()=>{ if(confirm('Clear both line ends?')){S.pin=S.rc=null;S.courseSide=null;} };
+$('twd').oninput=e=>{ const v=parseFloat(e.target.value); S.twd=isNaN(v)?null:norm(v); };
+$('bH2W').onclick=()=>{ const h=S.hdg??S.cog; if(h==null){alert('No heading yet.');return;} S.twd=Math.round(h); $('twd').value=S.twd; beep(1,.08,1200); };
+$('bClrWind').onclick=()=>{ S.twd=null; $('twd').value=''; };
+$('seqlen').onchange=e=>{ S.seqLen=+e.target.value; if(!S.running) S.lastSignal=null; };
+$('demo').onchange=e=>{ S.demo=e.target.checked; if(!S.demo){S.pin=S.rc=null;S.twd=null;$('twd').value='';} };
+$('bPerm').onclick=requestPerms;
+$('bRec').onclick=()=>{ S.recording=!S.recording; $('bRec').textContent=S.recording?'Stop recording':'Start recording'; };
+$('bGpx').onclick=()=>{ if(!S.track.length&&!S.pin){alert('Nothing to export.');return;} gpx(); };
+$('bClrTrack').onclick=()=>{ if(confirm('Delete recorded track?')){S.track=[];S.marks=[];} };
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&navigator.wakeLock) navigator.wakeLock.request('screen').catch(()=>{}); });
+
+startGPS();
+window.addEventListener('deviceorientationabsolute',onOrient,true);
+window.addEventListener('deviceorientation',onOrient,true);
+setInterval(demoTick,500);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
