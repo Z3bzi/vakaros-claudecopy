@@ -44,11 +44,12 @@ main{flex:1;overflow:hidden;position:relative}
 #status .warn{color:var(--burn)}
 
 /* ----- buttons ----- */
-.bar{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--line);padding:2px 0 0;flex:0 0 auto}
+.bar{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--line);padding:2px 0 0;flex:0 0 auto}
 .bar button{
-  font:700 20px/1 "Barlow Condensed",sans-serif;color:var(--ink);background:var(--sea2);
-  border:0;padding:18px 6px calc(18px + var(--sab));min-height:64px;letter-spacing:.02em
+  font:700 19px/1 "Barlow Condensed",sans-serif;color:var(--ink);background:var(--sea2);
+  border:0;padding:18px 4px calc(18px + var(--sab));min-height:64px;letter-spacing:.02em
 }
+.bar button[disabled]{opacity:.4}
 .bar button:active{background:var(--line)}
 .bar button.hot{background:var(--go);color:var(--sea)}
 .bar button.warn{background:var(--ocs);color:var(--ink)}
@@ -122,6 +123,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
   </div>
   <div class="bar">
     <button id="bSync">Sync<small id="syncsub">start 5:00</small></button>
+    <button id="bMin">+1 min<small id="minsub">timer off</small></button>
     <button id="bPin">Ping pin<small id="pinsub">not set</small></button>
     <button id="bRC">Ping RC<small id="rcsub">not set</small></button>
   </div>
@@ -272,9 +274,18 @@ function sync(){
   if(!S.running){ S.startAt=Date.now()+S.seqLen*1000; S.running=true; S.lastSignal=null; return; }
   const rem=remaining();
   if(rem<=0){ S.running=false; S.startAt=null; return; }   // after start: stop/reset
-  // round to nearest minute
-  const rounded=Math.round(rem/60)*60;
-  S.startAt=Date.now()+rounded*1000;
+  // drop to the next whole minute below, matching the signal just heard
+  let synced=Math.floor(rem/60)*60;
+  if(rem-synced<1) synced=Math.max(0,synced-60);   // already on the minute: take the next one
+  S.startAt=Date.now()+synced*1000;
+  S.lastSignal=null;
+}
+/* add a minute to a running countdown */
+function addMinute(){
+  if(!S.running) return;
+  S.startAt+=60000;
+  S.lastSignal=null;
+  beep(1,.08,1000);
 }
 function signals(){
   if(!S.running) return;
@@ -412,12 +423,14 @@ function render(){
   if(S.running){
     $('cd').textContent=rem>=0?fmtT(Math.ceil(rem)):'+'+fmtT(-rem);
     hero.className=rem<=0?'go':'armed';
-    $('cdlbl').textContent=rem<=0?'Racing · tap Sync to reset':(rem<=60?'Last minute':'Countdown · tap Sync to round to nearest minute');
-    $('bSync').className='hot'; $('syncsub').textContent=rem<=0?'reset':'round';
+    $('cdlbl').textContent=rem<=0?'Racing · tap Sync to reset':(rem<=60?'Last minute':'Countdown · tap Sync to drop to the next minute');
+    $('bSync').className='hot'; $('syncsub').textContent=rem<=0?'reset':'to next min';
+    $('bMin').disabled=false; $('minsub').textContent=fmtT(Math.max(0,Math.ceil(rem)))+' → '+fmtT(Math.max(0,Math.ceil(rem))+60);
   }else{
     $('cd').textContent=fmtT(S.seqLen); hero.className='';
     $('cdlbl').textContent='Tap Sync to arm the timer';
     $('bSync').className=''; $('syncsub').textContent='start '+fmtT(S.seqLen);
+    $('bMin').disabled=true; $('minsub').textContent='timer off';
   }
   // line
   const bl=boatLine();
@@ -509,6 +522,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===b.dataset.v));
 });
 $('bSync').onclick=sync;
+$('bMin').onclick=addMinute;
 function ping(which){
   if(S.lat==null){ alert('No GPS fix yet.'); return; }
   const p={lat:S.lat,lon:S.lon};
