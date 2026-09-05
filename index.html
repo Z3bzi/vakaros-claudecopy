@@ -159,6 +159,12 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
     <div class="bias" id="bias">Set both ends and wind</div>
     <p class="help" id="biastxt"></p>
 
+    <h2>Practice</h2>
+    <div class="btnrow">
+      <button class="btn" id="bSample">Sample line: 15 m, 1.5 m ahead</button>
+    </div>
+    <p class="help">Drops a 15 m line square to your heading, with its middle 1.5 m in front of the bow: pin to port, RC to starboard. For trying the app out ashore or between races – it overwrites both ends.</p>
+
     <div class="btnrow" style="margin-top:20px">
       <button class="btn" id="bSwap">Swap ends</button>
       <button class="btn danger" id="bClrLine">Clear line</button>
@@ -222,6 +228,12 @@ function brg(a,b){ const p=toXY(b.lat,b.lon,a.lat,a.lon); return (Math.atan2(p.x
 const norm = d=>((d%360)+360)%360;
 const ang180 = d=>((d+540)%360)-180;
 function unit(bearing){ const r=bearing*Math.PI/180; return {x:Math.sin(r),y:Math.cos(r)}; }
+function fromXY(x,y,lat0,lon0){
+  const kx=Math.cos(lat0*Math.PI/180)*R*Math.PI/180, ky=R*Math.PI/180;
+  return {lat:lat0+y/ky, lon:lon0+x/kx};
+}
+/* heading shown on the race view: compass when asked for and available, else COG */
+function heading(){ return ($('hdgsrc').value==='compass'&&S.hdg!=null)?S.hdg:S.cog; }
 
 /* Line geometry: returns null if line incomplete */
 function lineGeo(){
@@ -465,7 +477,7 @@ function render(){
   const bc=$('burncell'), dc=$('dcell');
   if(bl){
     const ocs=bl.dLine<0;
-    $('dline').textContent=(ocs?'OCS ':'')+fmt(Math.abs(bl.dLine));
+    $('dline').textContent=(ocs?'OCS ':'')+fmt(Math.abs(bl.dLine),1);
     dc.className='cell'+(ocs?' ocs':'');
     let burn=null;
     if(bl.vToLine!=null&&bl.vToLine>0.15&&S.running&&rem>0){
@@ -482,7 +494,7 @@ function render(){
   // nav
   $('sog').textContent=fmt(S.sogMs*KN,1);
   $('cog').textContent=S.cog==null?'---':String(Math.round(S.cog)).padStart(3,'0');
-  const hdg=($('hdgsrc').value==='compass'&&S.hdg!=null)?S.hdg:S.cog;
+  const hdg=heading();
   $('hdg').textContent=hdg==null?'---':String(Math.round(hdg)).padStart(3,'0');
   const heel=S.heel*($('heelflip').checked?-1:1);
   $('heel').textContent=fmt(heel)+(heel>0.5?' S':heel<-0.5?' P':'');
@@ -558,15 +570,33 @@ function ping(which){
   if(S.lat==null){ alert('No GPS fix yet.'); return; }
   const p={lat:S.lat,lon:S.lon};
   S[which]=p; beep(2,.06,1400);
-  // remember which side of the line the boat is on right now (pre-start side) if no wind
-  if(S.pin&&S.rc){
-    const o=S.pin,e=toXY(S.rc.lat,S.rc.lon,o.lat,o.lon),L=Math.hypot(e.x,e.y);
-    if(L>1){ const d={x:e.x/L,y:e.y/L}, n={x:-d.y,y:d.x}; const b=toXY(S.lat,S.lon,o.lat,o.lon);
-      const s=b.x*n.x+b.y*n.y; S.courseSide = s>0?-1:1; }   // boat is on pre-start side → course side is opposite
-  }
+  setCourseSideFromBoat();
+}
+// remember which side of the line the boat is on right now (pre-start side) if no wind
+function setCourseSideFromBoat(){
+  if(!S.pin||!S.rc||S.lat==null) return;
+  const o=S.pin,e=toXY(S.rc.lat,S.rc.lon,o.lat,o.lon),L=Math.hypot(e.x,e.y);
+  if(L<1) return;
+  const d={x:e.x/L,y:e.y/L}, n={x:-d.y,y:d.x}, b=toXY(S.lat,S.lon,o.lat,o.lon);
+  const s=b.x*n.x+b.y*n.y; S.courseSide = s>0?-1:1;   // boat is on pre-start side → course side is opposite
 }
 $('bPin').onclick=()=>ping('pin');
 $('bRC').onclick=()=>ping('rc');
+/* A 15 m line square to the heading, centred 1.5 m ahead of the boat. */
+function sampleLine(){
+  if(S.lat==null){ alert('No GPS fix yet.'); return; }
+  const h=heading();
+  if(h==null){ alert('No heading yet \u2013 move off, or switch the heading source in Settings.'); return; }
+  const AHEAD=1.5, HALF=7.5;
+  const f=unit(h), port=unit(norm(h-90)), stbd=unit(norm(h+90));
+  const cx=f.x*AHEAD, cy=f.y*AHEAD;
+  S.pin=fromXY(cx+port.x*HALF, cy+port.y*HALF, S.lat, S.lon);
+  S.rc =fromXY(cx+stbd.x*HALF, cy+stbd.y*HALF, S.lat, S.lon);
+  S.courseSide=null;
+  setCourseSideFromBoat();   // the boat sits on the pre-start side of it
+  beep(2,.06,1400);
+}
+$('bSample').onclick=sampleLine;
 $('bSwap').onclick=()=>{ [S.pin,S.rc]=[S.rc,S.pin]; if(S.courseSide) S.courseSide*=-1; };
 $('bClrLine').onclick=()=>{ if(confirm('Clear both line ends?')){S.pin=S.rc=null;S.courseSide=null;} };
 $('twd').oninput=e=>{ const v=parseFloat(e.target.value); S.twd=isNaN(v)?null:norm(v); };
