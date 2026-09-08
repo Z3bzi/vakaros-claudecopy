@@ -18,19 +18,19 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
 html,body{height:100%;background:var(--sea);color:var(--ink);font-family:Barlow,system-ui,sans-serif;overflow:hidden}
 body{display:flex;flex-direction:column;padding-top:var(--sat)}
-.num{font-family:"Barlow Condensed",Barlow,system-ui,sans-serif;font-weight:800;font-variant-numeric:tabular-nums;line-height:.9;letter-spacing:-.01em}
+.num{font-family:"Barlow Condensed","Roboto Condensed","Arial Narrow",Barlow,system-ui,sans-serif;font-weight:800;font-variant-numeric:tabular-nums;line-height:.9;letter-spacing:-.01em}
 main{flex:1;overflow:hidden;position:relative}
 .view{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto}
 .view.on{display:flex}
 
 /* ----- race view ----- */
 #hero{flex:0 0 auto;padding:12px 16px 6px;text-align:center;border-bottom:2px solid var(--line);transition:background .2s}
-#hero .num{font-size:min(38vw,150px)}
+#hero .num{font-size:min(34vw,132px)}
 #hero .lbl{color:var(--dim);font-size:14px;margin-top:4px}
 #hero.armed{background:var(--sea2)}
 #hero.go{background:#0e3d34}
 #burnrow{display:grid;grid-template-columns:1fr 1fr;border-bottom:2px solid var(--line)}
-.cell{padding:10px 14px;border-right:2px solid var(--line)}
+.cell{padding:10px 14px;border-right:2px solid var(--line);min-width:0;overflow:hidden}
 .cell:last-child{border-right:0}
 .cell .num{font-size:min(22vw,92px)}
 .cell .lbl{color:var(--dim);font-size:13px;margin-top:6px}
@@ -39,6 +39,35 @@ main{flex:1;overflow:hidden;position:relative}
 #navrow .cell .num{font-size:min(17vw,70px)}
 #extra{display:grid;grid-template-columns:repeat(3,1fr);flex:1}
 #extra .cell .num{font-size:min(13vw,52px);font-weight:700}
+
+/* ----- wind shift & tack ----- */
+#shiftrow{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:2px solid var(--line)}
+#shiftrow .cell .num{font-size:min(13vw,54px)}
+#tackcell .num{font-size:min(9vw,38px)}
+#shiftcell.lift .num{color:var(--go)}
+#shiftcell.head .num{color:var(--ocs)}
+#shiftcell.lift .lbl{color:var(--go)} #shiftcell.head .lbl{color:var(--ocs)}
+#tackcell.flash{background:var(--sea2)}
+#race{padding-top:18px}
+#race.racing{padding-top:26px}
+.corner{
+  position:absolute;top:0;height:18px;width:42%;z-index:5;pointer-events:none;
+  opacity:0;background:var(--go);transition:opacity .15s
+}
+.corner.l{left:0;border-radius:0 0 10px 0}
+.corner.r{right:0;border-radius:0 0 0 10px}
+.corner.head{background:var(--ocs)}
+.corner.on{opacity:1;animation:blink .6s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+
+/* ----- after the gun: the countdown gives way to steering numbers ----- */
+#race.racing #hero,#race.racing #burnrow{display:none}
+#race.racing #navrow .cell{padding:12px 8px}
+#race.racing #navrow .cell .num{font-size:min(19vw,76px)}
+#race.racing #shiftrow .cell .num{font-size:min(14vw,58px)}
+#race.racing #tackcell .num{font-size:min(11vw,44px)}
+#race.racing .corner{height:26px}
+
 #status{padding:6px 14px;font-size:12px;color:var(--dim);display:flex;justify-content:space-between;gap:8px}
 #status b{color:var(--ink);font-weight:600}
 #status .warn{color:var(--burn)}
@@ -103,6 +132,8 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
 
 <!-- RACE -->
 <section id="race" class="view on">
+  <div class="corner l" id="cornerL"></div>
+  <div class="corner r" id="cornerR"></div>
   <div id="hero">
     <div class="num" id="cd">5:00</div>
     <div class="lbl" id="cdlbl">Tap Sync to arm the timer</div>
@@ -110,6 +141,11 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
   <div id="burnrow">
     <div class="cell" id="burncell"><div class="num" id="burn">—</div><div class="lbl">Time to burn</div></div>
     <div class="cell" id="dcell"><div class="num" id="dline">—</div><div class="lbl" id="dlbl">Distance to line (m)</div></div>
+  </div>
+  <div id="shiftrow">
+    <div class="cell" id="shiftcell"><div class="num" id="shift">—</div><div class="lbl" id="shiftlbl">Shift · 30 s avg</div></div>
+    <div class="cell"><div class="num" id="avghdg">---</div><div class="lbl">Avg heading °</div></div>
+    <div class="cell" id="tackcell"><div class="num" id="tack">—</div><div class="lbl" id="tacklbl">Tack</div></div>
   </div>
   <div id="navrow">
     <div class="cell"><div class="num" id="sog">0.0</div><div class="lbl">SOG kn</div></div>
@@ -123,6 +159,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
   </div>
   <div id="status">
     <span id="gps">GPS: waiting…</span>
+    <span id="elapsed"></span>
     <span id="rec"></span>
     <span id="clock"></span>
   </div>
@@ -181,6 +218,13 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--go)}
     </div>
     <div class="row"><span class="k">Sound signals</span><label class="toggle"><input type="checkbox" id="sound" checked></label></div>
     <div class="row"><span class="k">Rolling: auto-restart after 0</span><label class="toggle"><input type="checkbox" id="rolling"></label></div>
+
+    <h2>Wind shifts</h2>
+    <div class="row"><span class="k">Heading average window</span>
+      <select id="avgwin"><option value="20">20 s</option><option value="30" selected>30 s</option><option value="40">40 s</option></select>
+    </div>
+    <div class="row"><span class="k">Hide timer after the start</span><label class="toggle"><input type="checkbox" id="hidetimer" checked></label></div>
+    <p class="help">Ten seconds after the gun the countdown and the line numbers give way to heading, COG and speed. The shift panel compares your heading now with its average over the window: the top corners blink on the side the wind has shifted to, green for a lift and red for a header on the tack you are on, so the true wind direction on the Start line tab needs to be roughly right.</p>
 
     <h2>Sensors</h2>
     <div class="row"><span class="k">Heading source</span>
@@ -271,6 +315,87 @@ function bias(){
   return {adv, deg, favored: adv>0?'rc':'pin', squareWind: norm(g.brg + (g.n.x*unit(g.brg-90).x+g.n.y*unit(g.brg-90).y>0?-90:90))};
 }
 
+/* ================= wind shifts & tacks =================
+   Heading is averaged over a window so that steering wobble and waves do not
+   read as a shift; "now" is the mean of the last few seconds. The difference
+   between the two is the shift. Whether that shift is a lift or a header
+   depends on the tack, which comes from the side the true wind is on. */
+const SHIFT={hist:[],tack:null,tackSince:0,pend:null,pendSince:0,tacks:0,gybes:0,lastMan:0};
+const SH_CUR=3000;    // "now" = mean heading over the last 3 s
+const SH_MIN=7000;    // baseline needed before a shift is called
+const SH_DEAD=4;      // degrees inside which the wind is only breathing
+const SH_TURN=60;     // heading change over 8 s that counts as a manoeuvre
+function shiftWin(){ return (+$('avgwin').value||30)*1000; }
+function circMean(a){
+  if(!a.length) return null;
+  let sx=0,sy=0;
+  for(const h of a){ const r=h*Math.PI/180; sx+=Math.sin(r); sy+=Math.cos(r); }
+  if(!sx&&!sy) return null;
+  return norm(Math.atan2(sx,sy)*180/Math.PI);
+}
+/* headings whose age is between newMs and oldMs */
+function hdgsIn(now,oldMs,newMs){
+  const out=[];
+  for(const p of SHIFT.hist){ const age=now-p.t; if(age<=oldMs&&age>=newMs) out.push(p.h); }
+  return out;
+}
+function sampleAt(now,ms){ let r=null; for(const p of SHIFT.hist){ if(p.t<=now-ms) r=p; else break; } return r; }
+function twaOf(h){ return (S.twd==null||h==null)?null:ang180(S.twd-h); }
+/* a manoeuvre invalidates the baseline: the old tack says nothing about this one */
+function newLeg(now,h){ SHIFT.hist=[{t:now,h}]; SHIFT.lastMan=now; }
+function manoeuvred(){ beep(1,.06,1500); try{ navigator.vibrate&&navigator.vibrate(30); }catch(e){} }
+function sampleHeading(){
+  const h=heading(); if(h==null) return;
+  const now=Date.now();
+  const ref=sampleAt(now,8000);
+  const turned=!!ref&&Math.abs(ang180(h-ref.h))>SH_TURN;
+  const twa=twaOf(h);
+  // Tack = the side the wind is on. Head to wind and dead downwind are
+  // ambiguous, so nothing is decided while passing through them.
+  let side=null;
+  if(twa!=null&&Math.abs(twa)>12&&Math.abs(twa)<168) side=twa>0?'S':'P';
+  SHIFT.hist.push({t:now,h});
+  const keep=now-(shiftWin()+SH_CUR+9000);
+  while(SHIFT.hist.length&&SHIFT.hist[0].t<keep) SHIFT.hist.shift();
+  if(side&&side!==SHIFT.tack){
+    if(SHIFT.pend!==side){ SHIFT.pend=side; SHIFT.pendSince=now; }
+    else if(now-SHIFT.pendSince>=1500){          // held long enough to be real
+      const first=SHIFT.tack==null;
+      const wasDownwind=Math.abs(twaOf(ref?ref.h:h)??0)>90;
+      SHIFT.tack=side; SHIFT.tackSince=now; SHIFT.pend=null;
+      if(!first){ wasDownwind?SHIFT.gybes++:SHIFT.tacks++; manoeuvred(); }
+      newLeg(now,h);
+    }
+  }else SHIFT.pend=null;
+  if(turned&&now-SHIFT.lastMan>6000){            // big turn: with no wind set this is all we have
+    if(S.twd==null){ SHIFT.tacks++; manoeuvred(); }
+    newLeg(now,h);
+  }
+}
+/* null until there is a heading; {settling:true} until the baseline is long enough */
+function shiftState(){
+  const now=Date.now(), h=heading();
+  if(h==null) return null;
+  const cur=circMean(hdgsIn(now,SH_CUR,0));
+  if(cur==null) return null;
+  const base=hdgsIn(now,shiftWin(),SH_CUR);
+  const span=SHIFT.hist.length?now-SHIFT.hist[0].t:0;
+  if(base.length<8||span<SH_CUR+SH_MIN) return {cur,settling:true};
+  const avg=circMean(base);
+  const d=ang180(cur-avg);
+  const steady=Math.abs(d)<SH_DEAD;
+  let kind=null;
+  const twa=twaOf(cur);
+  if(SHIFT.tack&&twa!=null&&!steady){
+    // Sailing a constant wind angle, the heading follows the wind: on starboard
+    // a veer (heading right) lets you point higher, on port it knocks you down.
+    let lift=(SHIFT.tack==='S')===(d>0);
+    if(Math.abs(twa)>100) lift=!lift;   // downwind the same shift works the other way
+    kind=lift?'lift':'head';
+  }
+  return {cur,avg,d,kind,steady,side:d>0?'R':'L'};
+}
+
 /* ================= timer ================= */
 let audioCtx=null;
 function beep(n=1,len=.12,freq=880){
@@ -340,6 +465,7 @@ function signals(){
   else if(rem===0){
     beep(1,1.2,520);
     S.marks.push({lat:S.lat,lon:S.lon,name:'Start',ts:Date.now()});
+    SHIFT.tacks=0; SHIFT.gybes=0;
     if($('rolling').checked){ S.startAt=Date.now()+S.seqLen*1000; S.lastSignal=null; }
   }
 }
@@ -472,6 +598,35 @@ function render(){
     $('bMin').disabled=true; $('minsub').textContent='timer off';
     $('bReset').disabled=true;
   }
+  // after the gun the countdown has done its job: clear it away and let the
+  // steering numbers grow. A short grace period keeps OCS readable at the start.
+  $('race').classList.toggle('racing', S.running&&rem<=-10&&$('hidetimer').checked);
+  $('elapsed').textContent=(S.running&&rem<=0)?'+'+fmtT(-rem):'';
+  // wind shifts & tack
+  const sh=shiftState(), sc=$('shiftcell');
+  const win=shiftWin()/1000;
+  if(!sh||sh.settling){
+    $('shift').textContent=sh?'…':'—';
+    $('shiftlbl').textContent=sh?'Shift · settling':'Shift · '+win+' s avg';
+    $('avghdg').textContent='---';
+    sc.className='cell';
+  }else{
+    $('shift').textContent=(sh.steady?'':(sh.d>0?'+':'-'))+Math.round(Math.abs(sh.d))+'°';
+    const dir=sh.side==='R'?'right':'left';
+    $('shiftlbl').textContent = sh.kind ? (sh.kind==='lift'?'LIFT':'HEADER')+' · '+dir
+                              : sh.steady ? 'Steady · '+win+' s'
+                              : dir+' · set the wind';
+    $('avghdg').textContent=String(Math.round(sh.avg)).padStart(3,'0');
+    sc.className='cell'+(sh.kind?' '+sh.kind:'');
+  }
+  const kind=(sh&&!sh.settling)?sh.kind:null;
+  $('cornerL').className='corner l'+(kind&&sh.side==='L'?' on '+kind:'');
+  $('cornerR').className='corner r'+(kind&&sh.side==='R'?' on '+kind:'');
+  $('tack').textContent=SHIFT.tack?(SHIFT.tack==='S'?'STBD':'PORT'):'—';
+  $('tacklbl').textContent=SHIFT.tack
+    ? SHIFT.tacks+' tack'+(SHIFT.tacks===1?'':'s')+(SHIFT.gybes?' · '+SHIFT.gybes+' gybe'+(SHIFT.gybes===1?'':'s'):'')+' · '+fmtT(Math.max(0,Math.floor((Date.now()-SHIFT.tackSince)/1000)))
+    : (S.twd==null?'Tack · set the wind':'Tack');
+  $('tackcell').className='cell'+(SHIFT.lastMan&&Date.now()-SHIFT.lastMan<3000?' flash':'');
   // line
   const bl=boatLine();
   const bc=$('burncell'), dc=$('dcell');
@@ -614,6 +769,7 @@ startGPS();
 armAutoPerms();
 permLabel();
 setInterval(demoTick,500);
+setInterval(sampleHeading,200);
 requestAnimationFrame(render);
 </script>
 </body>
